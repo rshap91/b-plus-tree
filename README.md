@@ -1,70 +1,32 @@
-# Getting Started with Create React App
+### Intro
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A react app implementation of a B+Tree index.
+Nodes have pointers (grey) and values (white)
 
-## Available Scripts
 
-In the project directory, you can run:
 
-### `npm start`
+- B +Tree is used for database table indexes (among other things). 
+- Each level (other than the root) contains multiple nodes
+- Each node contains multiple index-key values and pointers
+	- The pointers to the leaf nodes are to the corresponding rows in the table
+- The tree is balanced - all paths from root to each leaf are the same length.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
 
-### `npm test`
+- Leaf Nodes are a dense index on the tables index-key values.
+- each tier above that is a sparse index on the tier below
+	- sparse indexes are partial indexes, instead of pointing to a row exactly, they point to the start of a range of rows where the value would be found.
+- The only parameter is the _number of pointers in each node_. Each tree node will have no more than N pointers and N-1 values.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Tree Searching
 
-### `npm run build`
+- Starting at the root compare the search value to each value in the root node. 
+  - If the search value is less than the ith value of a tree node, follow the ith pointer. 
+  - If the search value is larger than every value in the tree node, follow the Nth (last) pointer.
+- Repeat this for each tier of the tree as you follow the pointers until you get to a leaf node.
+- When you get to the leaf nodes, scan the values in the node for the search value. 
+  - If the ith node value equals the search value, the ith pointer will point to the table row containing it.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### Inserting
+ - 

@@ -3,8 +3,8 @@ import React from "react"
 import BPlusTree from "./components/b-plus-tree"
 import DataTable from "./components/data-table"
 import "./App.css"
-import {searchTree, findNodeValue, findNextPointer, sleep} from "./ops.js"
-import { Button, Select, Input } from 'semantic-ui-react'
+import {searchTree, findNextPointer, sleep} from "./ops.js"
+import { Button, Input } from 'semantic-ui-react'
 
 
 function QueryInputs(props){
@@ -45,10 +45,11 @@ export default class App extends React.Component {
   }
 
   reset() {
+    const N = Number(document.getElementById('treeN').value)
     this.setState((state, props) => {
       return ({
         treeNodes: [],
-        treeN: state.treeN,
+        treeN: N ? N : state.treeN,
         tableValues: [],
         tableMaxId: 0
       })
@@ -339,7 +340,7 @@ export default class App extends React.Component {
       <div id="App">
         <div id="inputs">
           <QueryInputs handleInsert={this.handleInsert.bind(this)} handleDelete={this.handleDelete.bind(this)}/>
-          <SetTreeN updateTreeN={this.updateTreeN} treeN={this.state.treeN}/>
+          <SetTreeN updateTreeN={this.reset.bind(this)} treeN={this.state.treeN}/>
         </div>
         
         <BPlusTree nodes={this.state.treeNodes} n={this.state.treeN}/>
