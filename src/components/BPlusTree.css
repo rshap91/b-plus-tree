@@ -1,0 +1,43 @@
+.Tree {
+  text-align: center;
+}
+
+.nodeRow {
+  display: flex;
+  margin: 10em;
+  padding: 2em 1em;
+  justify-content: space-evenly;
+
+}
+
+.Node {
+  border: 1px solid #ccc;
+  padding: 0em;
+}
+
+.Node td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.Node td:hover {background-color: aquamarine;}
+
+.nodePointer {
+  background-color: grey;
+}
+
+.nodeValue {
+  background-color: whitesmoke;
+}
+
+.pointerPath {
+  background-color: steelblue;
+}
+
+.valueInsert {
+  background-color: teal;
+}
+
+.valueDelete {
+  background-color: firebrick;
+}
