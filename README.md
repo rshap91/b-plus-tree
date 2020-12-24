@@ -1,3 +1,8 @@
+run `npm install` 
+
+then `npm start`
+
+
 ### Intro
 
 A react app implementation of a B+Tree index.
