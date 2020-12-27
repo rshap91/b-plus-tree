@@ -56,6 +56,50 @@ export default class App extends React.Component {
     })
   }
 
+  async addToNode(node, rowIx, nodeIx, valIx, val) {
+    document.querySelectorAll('#nodeRow-'+(rowIx) + ' > .Node')[nodeIx]
+            .querySelectorAll('td.nodeValue')[Math.max(Math.min(valIx, node.values.length-1), 0)]
+            .classList.add('valueInsert')
+    await sleep(1000)
+    node.values.splice(valIx, 0, val) 
+
+    if (node.leaf){
+      node.pointers.splice(valIx, 0, this.state.tableMaxId)
+    }
+    else {
+      node.pointers.push(Math.max(...node.pointers)+1)
+    }
+  }
+
+  splitNode(node){
+    let left = {
+      pointers: node.pointers.slice(0, Math.floor(node.pointers.length/2)),
+      values: node.values.slice(0, Math.floor(node.values.length/2)),
+      leaf: node.leaf
+    }
+    let right = {
+      pointers: node.pointers.slice(Math.floor(node.pointers.length/2), node.pointers.length),
+      values: node.values.slice(Math.floor(node.values.length/2)),
+      leaf: node.leaf
+    }
+    let splitValue = right.values[0]
+    // for non-leaf nodes, need to cut out splitting value
+    if (!node.leaf){
+      right.values = right.values.slice(1)
+    }
+    return {left, right, splitValue}
+  }
+  
+  getNodeAndParent(rowIx, path){
+    let row = this.state.treeNodes[rowIx]
+    let nodeIx = path[rowIx]
+    let parent = rowIx > 0 ? this.state.treeNodes[rowIx - 1][path[rowIx - 1]] : null
+    let parentIx = parent ? parent.pointers.indexOf(nodeIx) : null
+    let node = row[nodeIx]
+    return {row, node, nodeIx, parent, parentIx}
+
+  }
+
   handleInsert() {
     const v = Number(document.getElementById('queryValue').value)
     // insert into table
@@ -86,7 +130,7 @@ export default class App extends React.Component {
     // setState callback to delete from index 
     () => this.indexDelete(v, result.path, result.ix))
   }
-  
+
   async indexInsert(v) {
     // find the node and index for v
     let {path, ix} = await searchTree(v, this.state.treeNodes, true)
@@ -101,53 +145,25 @@ export default class App extends React.Component {
         break
       }
       let rowIx = this.state.treeNodes.length - r
-      let nodeIx = path[Math.max(path.length - (r+1), 0)] // pointer from parent or root
-      let row = this.state.treeNodes[rowIx]
-      let node = row[nodeIx]
+      let {row, node, nodeIx} =  this.getNodeAndParent(rowIx, path)
+      // let nodeIx = path[Math.max(path.length - (r+1), 0)] // pointer from parent or root... old... can I delete?
 
       // if leaves, add to node and include new table id
       if (node.leaf){
-        // style values compared
-        document.querySelectorAll('#nodeRow-'+(rowIx) + ' > .Node')[nodeIx]
-                .querySelectorAll('td.nodeValue')[Math.max(Math.min(ix, node.values.length-1), 0)]
-                .classList.add('valueInsert')
-        await sleep(1000)
-        node.values.splice(ix, 0, v) 
-        node.pointers.splice(ix, 0, this.state.tableMaxId)
+        await this.addToNode(node, rowIx, nodeIx, ix, v)
       }
       // otherwise add to parent
       else {
         // debugger;
         let {ix, pointer} = findNextPointer(splitValue, node)
-        document.querySelectorAll('#nodeRow-'+(rowIx) + ' > .Node')[nodeIx]
-                .querySelectorAll('td.nodeValue')[Math.max(Math.min(ix, node.values.length-1), 0)]
-                .classList.add('valueInsert')
-        await sleep(1000)
-        node.values.splice(ix, 0, splitValue)
-        // node.pointers.push(ix+1, 0, pointer+1)
-        node.pointers.push(Math.max(...node.pointers)+1)
+        await this.addToNode(node, rowIx, nodeIx, ix, splitValue)
       }
 
       // check if node > treeN
       if (node.values.length >= this.state.treeN) {
-        let left = {
-          pointers: node.pointers.slice(0, Math.floor(node.pointers.length/2)),
-          values: node.values.slice(0, Math.floor(node.values.length/2)),
-          leaf: node.leaf
-        }
-        let right = {
-          pointers: node.pointers.slice(Math.floor(node.pointers.length/2), node.pointers.length),
-          values: node.values.slice(Math.floor(node.values.length/2)),
-          leaf: node.leaf
-        }
-        splitValue = right.values[0]
-        // for non-leaf nodes, need to cut out splitting value
-        if (!node.leaf){
-          right.values = right.values.slice(1)
-        }
+        let {left, right, splitValue:split} = this.splitNode(node)
+        splitValue = split
 
-        console.log("LEFT", left)
-        console.log("RIGHT", right)
         // apply new nodes to row
         row.splice(nodeIx, 1, left, right)
 
@@ -158,6 +174,12 @@ export default class App extends React.Component {
             this.state.treeNodes
           )
           break
+        }
+        else {
+          // all pointers from parent row to the right of parent pointer must be incremented
+          this.state.treeNodes[rowIx - 1].slice(path[rowIx -1] + 1).forEach((n) => {
+            n.pointers = n.pointers.map((p) => p+1)
+          })
         }
       }
       else {
@@ -175,21 +197,25 @@ export default class App extends React.Component {
     if (ix === null || ix === undefined) {
       return false
     }
-    var priorValuesToSteal = this.state.treeNodes.map((row, i) => {
-      let valIx = row[path[i]].pointers.indexOf(path[i+1])
-      return row[path[i]].values[valIx]
-    })
+
+    // for re-structuring ancestors that contain the value to delete.
+    let newBase
     
     for (let r = 1; r <= (path.length - 1); r++) {
       // debugger;
       let rowIx = this.state.treeNodes.length - r
-      let nodeIx = path[rowIx]
-      // start at leaf
-      let row = this.state.treeNodes[rowIx]
-      let node = row[nodeIx]
+      let {row, node, nodeIx, parent} =  this.getNodeAndParent(rowIx, path)
 
+      if (node.root){
+        // If the tree is empty just reset???
+        if (node.values.length === 0) {
+          this.state.treeNodes.splice(0, 1)
+          this.state.treeNodes[0][0].root = true
+          break
+        }
+      }
       if (node.leaf){
-        // style values to delete
+        // style values and delete
         let nodeElem = document.querySelectorAll('#nodeRow-'+(rowIx) + ' > .Node')[nodeIx]
         nodeElem.querySelectorAll('td.nodeValue')[ix].classList.add('valueDelete')
         nodeElem.querySelectorAll('td.nodePointer')[ix].classList.add('valueDelete')
@@ -197,46 +223,41 @@ export default class App extends React.Component {
         node.values.splice(ix, 1) 
         node.pointers.splice(ix, 1)
 
+        // if node is not empty - check to see if the deleted value is in the parent
         if (node.values.length > 0) {
-          let parent = this.state.treeNodes[rowIx - 1][path[rowIx - 1]]
+          newBase = node.values[0]
           let deleteIx = parent.values.indexOf(val)
           if (deleteIx >= 0){
-            parent.values.splice(deleteIx, 1, node.values[0])
+            parent.values.splice(deleteIx, 1, newBase)
           }
         }
       }
-      else if (node.root){
-        if (node.values.length === 0) {
-          this.state.treeNodes.splice(0, 1)
-          this.state.treeNodes[0][0].root = true
-          break
-        }
-        let deleteIx = node.values.indexOf(val)
-        if (deleteIx >= 0) {
-          node.values.splice(deleteIx, 1, priorValuesToSteal[rowIx + 1])
-        }
-      }
       else {
+        // for non-leaves check to see if the value to delete exists and replace with new base
         let deleteIx = node.values.indexOf(val)
         if (deleteIx >= 0) {
-          node.values.splice(deleteIx, 1, priorValuesToSteal[rowIx + 1])
+          node.values.splice(deleteIx, 1, newBase)
         }
-        
       }
 
+      // If we are under the minimum allowed values, restructure
       if (!node.root && node.values.length < Math.floor(this.state.treeN/2) ) {
         console.log("RESTRUCTURE")
         // try left?
         if (this.pullFromLeft(rowIx, path)) {
+          newBase = node.values[0]
           continue
         }
         // try right?
         else if (this.pullFromRight(rowIx, path)){
+          newBase = node.values[0]
           continue
         }
         // merge
         else {
-          this.merge(rowIx, path)
+          let merged = this.merge(rowIx, path)
+          newBase = merged.values[0]
+          
         }
       }
     }
@@ -247,10 +268,7 @@ export default class App extends React.Component {
   }
 
   pullFromLeft(rowIx, path) {
-    let row = this.state.treeNodes[rowIx]
-    let nodeIx = path[rowIx]
-    let parent = this.state.treeNodes[rowIx - 1][path[rowIx - 1]]
-    let parentIx = parent.pointers.indexOf(nodeIx)
+    let {row, nodeIx, parent, parentIx} = this.getNodeAndParent(rowIx, path)
     // if there is no left node or left node is too small, return false
     if (nodeIx === Math.min(...parent.pointers) || row[nodeIx-1].values.length -1 < Math.floor(this.state.treeN/2)) {
       return false
@@ -264,16 +282,12 @@ export default class App extends React.Component {
     row[nodeIx].pointers.splice(0, 0, splitPointer)
 
     parent.values.splice(parentIx - 1, 1, splitValue)
-    // parent.pointers.splice(parentIx, 1, splitPointer)
 
     return true
   }
 
   pullFromRight(rowIx, path) {
-    let row = this.state.treeNodes[rowIx]
-    let nodeIx = path[rowIx]
-    let parent = this.state.treeNodes[rowIx - 1][path[rowIx - 1]]
-    let parentIx = parent.pointers.indexOf(nodeIx)
+    let {row, nodeIx, parent, parentIx} = this.getNodeAndParent(rowIx, path)
     // if there is no right node or it is too small, return false
     if (nodeIx === Math.max(...parent.pointers) || (row[nodeIx + 1].values.length - 1) < Math.floor(this.state.treeN/2)) {
       return false
@@ -298,17 +312,12 @@ export default class App extends React.Component {
   }
 
   merge(rowIx, path) {
-    // debugger;
-    let row = this.state.treeNodes[rowIx]
-    let nodeIx = path[rowIx]
-    let parent = this.state.treeNodes[rowIx - 1][path[rowIx - 1]]
-    let parentIx = parent.pointers.indexOf(nodeIx)
+    let {row, nodeIx, parent, parentIx} = this.getNodeAndParent(rowIx, path)
 
     // if we are the left-most node, move right 1.
     if (nodeIx === Math.min(...parent.pointers)){
       nodeIx ++
     }
-
     let node = row[nodeIx]
     let left = row[nodeIx - 1]
     
@@ -332,6 +341,7 @@ export default class App extends React.Component {
     this.state.treeNodes[rowIx - 1].slice(path[rowIx -1] + 1).forEach((n) => {
       n.pointers = n.pointers.map((p) => p-1)
     })
+    return merged
   }
 
   render() {
